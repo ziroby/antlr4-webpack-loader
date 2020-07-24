@@ -4,7 +4,7 @@ var fs = require('fs');
 var spawn = require('child_process').spawn;
 var webpack = require('webpack');
 
-antlrJar = path.resolve(__dirname, 'antlr-4.7-complete.jar');
+antlrJar = path.resolve(__dirname, 'antlr-4.8-complete.jar');
 
 antlrArgs = [
   '-Dlanguage=JavaScript',
