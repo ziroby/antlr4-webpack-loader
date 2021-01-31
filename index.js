@@ -4,7 +4,7 @@ var fs = require('fs');
 var spawn = require('child_process').spawn;
 var webpack = require('webpack');
 
-antlrJar = path.resolve(__dirname, 'antlr-4.8-complete.jar');
+antlrJar = path.resolve(__dirname, 'antlr-4.9.1-complete.jar');
 
 antlrArgs = [
   '-Dlanguage=JavaScript',
@@ -57,12 +57,16 @@ function runAntlr(grammarFile, outputDir, callback) {
 function compileAntlr(name, workingDir, callback) {
   fs.readdir(workingDir, function (err, files) {
     if (err) { callback(err); }
-    var exports = files
-      .filter(function (file) { return path.extname(file) === '.js'; })
-      .map(function (jsfile) { return path.basename(jsfile, '.js'); })
-      .map(function (name) { return name + ': require(\'./' + name + '.js\')' + '.' + name; })
+    var jsfiles = files
+        .filter(function (file) { return path.extname(file) === '.js'; })
+        .map(function (jsfile) { return path.basename(jsfile, '.js'); })
+    var imports = jsfiles
+      .map(function (name) { return 'import ' + name + ' from \'./' + name + '\''; })
+      .join(';\n') + ';\n\n';
+    var exports = jsfiles
+      .map(function (name) { return name; })
       .join(',\n');
-    var indexData = 'module.exports = {\n' + exports + '\n};\n';
+    var indexData = imports + 'export {\n' + exports + '\n};\n';
     var indexFile = path.resolve(workingDir, 'index.js');
 
     fs.writeFile(indexFile, indexData, function (err) {
@@ -72,16 +76,27 @@ function compileAntlr(name, workingDir, callback) {
         output: {
           path: path.resolve(workingDir),
           filename: 'bundle.js',
-          library: name,
+//          library: name,
           libraryTarget: 'commonjs2'
         },
-        externals: [ 'antlr4/index' ],
-        node: {
-          module: 'empty',
-          net: 'empty',
-          fs: 'empty',
-        },
-
+        externals: [ 'antlr4' ],
+        module: {
+        rules: [
+            {
+                test: /\.m?js$/,
+                exclude: /(node_modules|bower_components)/,
+                use: {
+                    loader: 'babel-loader',
+                    options: {
+                      presets: ['@babel/preset-env',
+                      {
+                        'plugins': ['@babel/plugin-proposal-class-properties']
+                      }]
+                    }
+                }
+            }
+        ]},
+        resolve: { fallback: { fs: false } }
       }, function (err, stats) {
         if (err) { return callback(err); }
         if (stats.hasErrors()) {
